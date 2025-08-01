@@ -39,8 +39,19 @@ def fetch_and_store():
                 soup = BeautifulSoup(response.text, "html.parser")
                 element = soup.find(has_all_classes)
                 count = int(element.get_text(strip=True).replace(",", ""))
+                # Find totalPlaysCount using a simple text search
+                html_text = response.text
+                try:
+                    match_start = html_text.index('totalPlaysCount\\",') + len('totalPlaysCount\\",')
+                    match_end = html_text.index(',', match_start)
+                    total_plays = int(html_text[match_start:match_end])
+                except:
+                    total_plays = None
                 slug = url.rstrip("/").split("/")[-1]
-                new_data[slug] = count
+                new_data[slug] = {
+                    "current": count,
+                    "total": total_plays
+                }
             except:
                 pass  # skip broken pages
 
@@ -70,6 +81,10 @@ threading.Thread(target=fetch_and_store, daemon=True).start()
 def index():
     return render_template("index.html")
 
+@app.route("/totals")
+def totals():
+    return render_template("totals.html")
+
 @app.route("/data")
 def data():
     try:
@@ -79,4 +94,4 @@ def data():
         return jsonify({})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)

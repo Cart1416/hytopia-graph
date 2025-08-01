@@ -2,14 +2,14 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Hytopia Live Player Count Tracker</title>
+  <title>Hytopia Live Total Plays Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h2>Hytopia Live Player Count Tracker</h2>
+  <h2>Hytopia Live Total Plays Tracker</h2>
   <p>Time is in EST. Updates every 5 minutes. Made by Cart1416.</p>
   <a href="https://github.com/Cart1416/hytopia-graph">Github</a>
-  <a href="/totals">View Total Plays →</a>
+  <a href="/">← Back to Player Graph</a>
   <canvas id="chart" width="1200" height="500"></canvas>
 
   <script>
@@ -22,7 +22,7 @@
 
       const datasets = Object.entries(games).map(([slug, entries], i) => ({
         label: slug,
-        data: entries.map(e => e.current),
+        data: entries.map(e => e.total),
         borderColor: `hsl(${i * 40 % 360}, 70%, 50%)`,
         fill: false,
         tension: 0.1
