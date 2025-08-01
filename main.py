@@ -1,12 +1,15 @@
-import requests
-import json
+from flask import Flask, render_template, jsonify
+import threading, time, requests, json
 from bs4 import BeautifulSoup
+from datetime import datetime
 
-# Load URLs
-with open("gameurls.json", "r") as f:
-    urls = json.load(f)
+app = Flask(__name__)
 
-# Classes used to identify player count element
+DATA_FILE = "data.json"
+URLS_FILE = "gameurls.json"
+UPDATE_INTERVAL = 300  # 5 minutes
+
+# Tailwind-style class list to locate the player count
 target_classes = [
     "bg-gradient-to-r",
     "from-[#93E560]",
@@ -18,36 +21,62 @@ target_classes = [
     "[text-fill-color:transparent]"
 ]
 
-# Helper function to check class match
 def has_all_classes(tag):
     return tag.has_attr("class") and all(c in tag["class"] for c in target_classes)
 
-# Store results as a list of tuples (url, player_count)
-results = []
+# Periodic background scraper
+def fetch_and_store():
+    while True:
+        with open(URLS_FILE) as f:
+            urls = json.load(f)
 
-for url in urls:
-    try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
-        element = soup.find(has_all_classes)
+        new_data = {}
+        timestamp = datetime.now().strftime("%m/%d/%y %I:%M %p")
 
-        if element:
-            text = element.get_text(strip=True).replace(",", "")
-            # Attempt to parse player count
+        for url in urls:
             try:
-                count = int(text)
-                results.append((url, count))
-            except ValueError:
-                print(f"Couldn't parse count from {url}: '{text}'")
-        else:
-            print(f"No matching element in {url}")
-    except Exception as e:
-        print(f"Error processing {url}: {e}")
+                response = requests.get(url)
+                soup = BeautifulSoup(response.text, "html.parser")
+                element = soup.find(has_all_classes)
+                count = int(element.get_text(strip=True).replace(",", ""))
+                slug = url.rstrip("/").split("/")[-1]
+                new_data[slug] = count
+            except:
+                pass  # skip broken pages
 
-# Sort by player count descending
-sorted_results = sorted(results, key=lambda x: x[1], reverse=True)
+        # Load existing data or init
+        try:
+            with open(DATA_FILE, "r") as f:
+                all_data = json.load(f)
+        except:
+            all_data = {"timestamps": [], "games": {}}
 
-# Output
-print("\nSorted Game List by Player Count:")
-for url, count in sorted_results:
-    print(f"{count:,} players - {url}")
+        all_data["timestamps"].append(timestamp)
+
+        for slug, count in new_data.items():
+            all_data["games"].setdefault(slug, []).append(count)
+
+        with open(DATA_FILE, "w") as f:
+            json.dump(all_data, f, indent=2)
+            print(f"Data updated at {timestamp}")
+
+        time.sleep(UPDATE_INTERVAL)
+
+# Start background scraping thread
+threading.Thread(target=fetch_and_store, daemon=True).start()
+
+# Routes
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/data")
+def data():
+    try:
+        with open(DATA_FILE) as f:
+            return jsonify(json.load(f))
+    except:
+        return jsonify({})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

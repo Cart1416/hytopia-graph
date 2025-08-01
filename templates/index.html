@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hytopia Game Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h2>Live Player Count Tracker</h2>
+  <br>
+  <p>Time is in EST. Updates every 5 minutes.</p>
+  <canvas id="chart" width="1200" height="500"></canvas>
+
+  <script>
+    async function fetchData() {
+      const res = await fetch("/data");
+      const data = await res.json();
+
+      const timestamps = data.timestamps || [];
+      const games = data.games || {};
+
+      const datasets = Object.entries(games).map(([slug, counts], i) => ({
+        label: slug,
+        data: counts,
+        borderColor: `hsl(${i * 40 % 360}, 70%, 50%)`,
+        fill: false,
+        tension: 0.1
+      }));
+
+      new Chart(document.getElementById("chart"), {
+        type: "line",
+        data: {
+          labels: timestamps,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+            title: { display: true, text: "Player Count Over Time" }
+          }
+        }
+      });
+    }
+
+    fetchData();
+    setInterval(fetchData, 300000); // Refresh chart every 30s
+  </script>
+</body>
+</html>
